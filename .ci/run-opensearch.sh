@@ -33,6 +33,18 @@ environment=($(cat <<-END
 END
 ))
 
+if [[ "$SECURE_INTEGRATION" == "true" ]]; then
+  environment+=($(cat <<-END
+    --env DISABLE_SECURITY_PLUGIN=false
+END
+))
+else
+  environment+=($(cat <<-END
+    --env DISABLE_SECURITY_PLUGIN=true
+END
+))
+fi
+
 NUMBER_OF_NODES=${NUMBER_OF_NODES-1}
 http_port=9200
 for (( i=0; i<$NUMBER_OF_NODES; i++, http_port++ )); do
@@ -47,6 +59,9 @@ END
   volume_name=${node_name}-rest-test-data
   volumes+=($(cat <<-END
     --volume $volume_name:/usr/share/opensearch/data${i}
+    --volume $ssl_ca_pem:/usr/share/opensearch/config/root-ca.pem
+    --volume $ssl_cert_pem:/usr/share/opensearch/config/esnode.pem
+    --volume $ssl_key_pem:/usr/share/opensearch/config/esnode-key.pem
 END
 ))
 
@@ -54,19 +69,9 @@ END
   local_detach="true"
   if [[ "$i" == "$((NUMBER_OF_NODES-1))" ]]; then local_detach=$DETACH; fi
 
-  CLUSTER_TAG=$CLUSTER
+  CLUSTER_TAG="opensearchproject/opensearch:test"
   if [[ "$STACK_VERSION" != *"SNAPSHOT" ]]; then
-    CLUSTER_TAG=$CLUSTER-secure-$SECURE_INTEGRATION
-    echo -e "\033[34;1mINFO: building $CLUSTER container\033[0m"
-    echo 'cluster is' $CLUSTER
-    docker build \
-      --file=.ci/$CLUSTER/Dockerfile \
-      --build-arg SECURE_INTEGRATION=$SECURE_INTEGRATION \
-      --build-arg STACK_VERSION=$STACK_VERSION \
-      --tag=$CLUSTER_TAG \
-      .
-  else
-    CLUSTER_TAG=$CLUSTER_TAG:test
+    CLUSTER_TAG="opensearchproject/opensearch:${STACK_VERSION:-latest}"
   fi
 
   echo -e "\033[34;1mINFO:\033[0m Starting container $node_name \033[0m"
@@ -80,7 +85,7 @@ END
   docker run \
     --name "$node_name" \
     --network "$network_name" \
-    --env "ES_JAVA_OPTS=-Xms1g -Xmx1g" \
+    --env "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g" \
     "${environment[@]}" \
     "${volumes[@]}" \
     --publish "$http_port":9200 \

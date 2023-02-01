@@ -3,13 +3,9 @@ version: '3'
 services:
 
   opensearch:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - SECURE_INTEGRATION=${SECURE_INTEGRATION:-false}
-        - STACK_VERSION=${STACK_VERSION:-latest}
+    image: "opensearchproject/opensearch:${STACK_VERSION:-latest}"
     environment:
+      - DISABLE_SECURITY_PLUGIN=${DISABLE_SECURITY:-false}
       - discovery.type=single-node
       - bootstrap.memory_lock=true
     ports:
