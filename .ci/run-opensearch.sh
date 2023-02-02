@@ -96,7 +96,6 @@ END
     --health-interval=2s \
     --health-retries=20 \
     --health-timeout=2s \
-    --rm \
     -d \
     $CLUSTER_TAG;
 
